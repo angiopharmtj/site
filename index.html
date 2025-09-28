@@ -133,21 +133,21 @@
     
     .card{background:#fff; border:none; border-radius:var(--radius); 
           box-shadow:var(--shadow); display:flex; flex-direction:column; 
-          transition:all 0.2s ease; overflow:hidden; position:relative;}
+          transition:all 0.2s ease; overflow:hidden; position:relative;
+          padding:16px; text-align:center;}
     .card:hover{transform:translateY(-2px); box-shadow:var(--shadow-lg);}
     
-    .card img{width:100%; height:112px; object-fit:contain; background:#fff; padding:4px;}
-    .card .body{padding:8px;}
-    .title{font-weight:600; margin:0 0 4px; font-size:12px; color:var(--text); line-height:1.1;}
-    .desc{color:var(--muted); font-size:10px; line-height:1.2; margin-bottom:6px; 
-          height:30px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical;}
-    .price{margin:6px 0; font-weight:600; font-size:12px; color:var(--primary);}
+    .card img{width:100%; height:200px; object-fit:contain; background:#fff; margin-bottom:12px;}
+    .card .body{padding:0;}
+    .title{font-weight:600; margin:0 0 8px; font-size:14px; color:var(--text); 
+           line-height:1.3; text-align:center;}
+    .desc{display:none;} /* Скрываем описание */
+    .price{margin:0; font-weight:600; font-size:16px; color:var(--primary); text-align:center;}
     .price .tag{display:inline-block; font-size:11px; font-weight:500; color:var(--primary); 
                 background:#f7fafc; border:1px solid var(--line); padding:2px 8px; 
                 border-radius:4px; margin-left:8px; vertical-align:middle;}
     
-    .actions{display:flex; align-items:center; margin-top:6px;}
-    .qty{display:none;} /* Скрываем поле количества */
+    .actions{display:flex; align-items:center; margin-top:12px;}
     
     button.primary{background:#595377; color:#fff; border:none; padding:8px 16px; 
                    border-radius:var(--radius); cursor:pointer; font-weight:500; font-size:13px;
@@ -175,6 +175,32 @@
     
     /* Блокировка скролла body когда корзина открыта */
     body.cart-open{overflow:hidden; position:fixed; width:100%; height:100%;}
+    
+    /* Мобильная оптимизация для клавиатуры */
+    @media (max-width: 768px) {
+      .drawer{
+        height:100vh; 
+        height:100dvh; /* Используем динамическую высоту viewport */
+        max-height:100vh;
+        max-height:100dvh;
+      }
+      .cart-footer{
+        position:relative; 
+        z-index:10;
+        flex-shrink:0;
+      }
+      .checkout input, .checkout textarea{
+        font-size:16px; /* Предотвращает зум на iOS */
+        transform:translateZ(0); /* Принудительное аппаратное ускорение */
+        -webkit-appearance:none; /* Убираем стили по умолчанию */
+        border-radius:8px;
+      }
+      .checkout input:focus, .checkout textarea:focus{
+        transform:translateZ(0) scale(1);
+        outline:none;
+        box-shadow:0 0 0 2px rgba(89,83,119,0.2);
+      }
+    }
     .cart-item{display:flex; gap:12px; padding:12px; border-bottom:1px solid #f0f0f0; 
                transition:background-color 0.2s ease;}
     .cart-item:hover{background:#fafbfc;}
@@ -673,6 +699,43 @@
         document.body.classList.remove('cart-open');
       }
     });
+    
+    // Автоматическая прокрутка к полям ввода на мобильных устройствах
+    function scrollToInput(inputElement) {
+      if (window.innerWidth <= 768) {
+        setTimeout(() => {
+          const drawer = document.getElementById('drawer');
+          const cartFooter = drawer.querySelector('.cart-footer');
+          if (cartFooter) {
+            cartFooter.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'end',
+              inline: 'nearest'
+            });
+          }
+        }, 300); // Небольшая задержка для появления клавиатуры
+      }
+    }
+    
+    // Добавляем обработчики фокуса для полей ввода
+    nameEl.addEventListener('focus', () => scrollToInput(nameEl));
+    phoneEl.addEventListener('focus', () => scrollToInput(phoneEl));
+    noteEl.addEventListener('focus', () => scrollToInput(noteEl));
+    
+    // Обработчик изменения размера viewport (для клавиатуры)
+    let initialViewportHeight = window.innerHeight;
+    window.addEventListener('resize', () => {
+      const currentHeight = window.innerHeight;
+      if (currentHeight < initialViewportHeight * 0.75 && drawer.classList.contains('open')) {
+        // Клавиатура открыта, корректируем высоту корзины
+        const drawer = document.getElementById('drawer');
+        drawer.style.height = currentHeight + 'px';
+      } else if (currentHeight >= initialViewportHeight * 0.75) {
+        // Клавиатура закрыта, восстанавливаем высоту
+        const drawer = document.getElementById('drawer');
+        drawer.style.height = '';
+      }
+    });
     document.getElementById('submitOrder').onclick = submitOrder;
 
     document.querySelectorAll('input[name="pm"]').forEach(r=>{
@@ -795,10 +858,9 @@
           <img src="${p.photo||''}" alt="${p.name}" />
           <div class="body">
             <div class="title">${p.name}</div>
-            <div class="desc">${p.desc||''}</div>
             <div class="price">${fmtMoney(p.price, p.currency||'TJS')} ${priceTag}</div>
             <div class="actions">
-              <button class="primary" onclick="addToCart(allProducts.find(product => product.id === '${p.id}'), 1)">В корзину</button>
+              <button class="primary" onclick="addToCart(allProducts.find(product => product.id === '${p.id}'), 1)">Добавить в корзину</button>
             </div>
           </div>
         </div>`;
