@@ -238,16 +238,56 @@
                                                           border-radius:6px; font-size:13px; 
                                                           transition:border-color 0.2s ease; background:#fff;
                                                           font-family:inherit;}
+    
+    .checkout input[type="file"]{
+      padding:8px;
+      border:2px dashed #ccc;
+      background:#f8f9fa;
+      font-size:14px;
+      cursor:pointer;
+    }
+    .checkout input[type="file"]:hover{
+      border-color:var(--primary);
+      background:#f0f0f0;
+    }
     .checkout input:focus, .checkout textarea:focus, .checkout select:focus{
       border-color:var(--primary); outline:none; box-shadow:0 0 0 2px rgba(89,83,119,0.1);}
     .checkout textarea{min-height:60px; resize:vertical; font-family:inherit;}
     .hint{font-size:11px; color:var(--muted); margin-top:4px;}
-    .radio-row{display:flex; flex-direction:column; gap:8px;}
-    .radio-row label{display:flex; align-items:center; gap:8px; cursor:pointer; 
-                     font-weight:500; font-size:13px; padding:6px; border-radius:6px;
-                     transition:background-color 0.2s ease;}
-    .radio-row label:hover{background:#f5f5f5;}
-    .radio-row input[type="radio"]{margin:0; width:16px; height:16px; accent-color:var(--primary);}
+    .radio-row{display:flex; flex-direction:column; gap:12px;}
+    .radio-row label{display:flex; align-items:center; gap:12px; cursor:pointer; 
+                     font-weight:500; font-size:14px; padding:12px; border-radius:8px;
+                     transition:background-color 0.2s ease; border:1px solid #e0e0e0;
+                     background:#fff;}
+    .radio-row label:hover{background:#f8f9fa; border-color:var(--primary);}
+    .radio-row input[type="radio"]{
+      margin:0; 
+      width:20px; 
+      height:20px; 
+      accent-color:var(--primary);
+      transform:scale(1.2);
+      -webkit-appearance:none;
+      appearance:none;
+      border:2px solid #ccc;
+      border-radius:50%;
+      background:#fff;
+      position:relative;
+    }
+    .radio-row input[type="radio"]:checked{
+      border-color:var(--primary);
+      background:var(--primary);
+    }
+    .radio-row input[type="radio"]:checked::after{
+      content:'';
+      position:absolute;
+      top:50%;
+      left:50%;
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:#fff;
+      transform:translate(-50%, -50%);
+    }
     .ok{color:var(--ok); font-weight:500;} 
     .err{color:var(--danger); font-weight:500;}
     .empty{padding:40px; text-align:center; color:var(--muted); font-size:15px;}
@@ -620,9 +660,23 @@
 
     async function fileToBase64(file){
       if (!file) return '';
-      const buf = await file.arrayBuffer();
-      let b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      return `data:${file.type||'application/octet-stream'};base64,` + b64;
+      
+      // Проверяем размер файла (максимум 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Файл слишком большой. Максимальный размер: 5MB');
+      }
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result;
+          // Убираем префикс "data:..." если он есть
+          const base64 = result.includes(',') ? result.split(',')[1] : result;
+          resolve(base64);
+        };
+        reader.onerror = () => reject(new Error('Ошибка чтения файла'));
+        reader.readAsDataURL(file);
+      });
     }
 
     async function submitOrder(){
@@ -637,7 +691,14 @@
       msg('Отправляем заказ…');
       try{
         let receipt_b64 = '';
-        if (pm === 'prepaid' && receiptEl.files?.[0]) receipt_b64 = await fileToBase64(receiptEl.files[0]);
+        if (pm === 'prepaid' && receiptEl.files?.[0]) {
+          try {
+            receipt_b64 = await fileToBase64(receiptEl.files[0]);
+          } catch (fileError) {
+            msg('Ошибка загрузки файла: ' + fileError.message, true);
+            return;
+          }
+        }
 
         const token = localStorage.getItem(LS_TOKEN) || '';
         const payload = {
